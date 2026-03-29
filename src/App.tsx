@@ -6,7 +6,7 @@ import {
   Briefcase, Bell, Lock, LogOut, ChevronRight
 } from 'lucide-react';
 import { db, auth } from './firebase';
-import { collection, getDocs, addDoc, updateDoc, doc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, doc, onSnapshot, query, orderBy, deleteDoc } from 'firebase/firestore';
 
 // --- Types ---
 type Role = {
@@ -97,7 +97,7 @@ export default function App() {
       setIsAdmin(true);
       setPinInput('');
     } else {
-      alert('Incorrect PIN');
+      console.error('Incorrect PIN');
     }
   };
 
@@ -123,7 +123,6 @@ export default function App() {
       setApplicationSubmitted(true);
     } catch (err) {
       console.error("Failed to submit application:", err);
-      alert('Failed to submit application. Please check database connection.');
     }
   };
 
@@ -387,7 +386,6 @@ export default function App() {
                                 await updateDoc(doc(db, 'tasks', task.id), { done: updatedStatus });
                               } catch (err) {
                                 console.error("Failed to update task:", err);
-                                alert('Failed to update task.');
                               }
                             }}
                             className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors stitch-border ${task.done ? 'bg-fest-green text-fest-bg border-fest-green' : 'bg-fest-bg text-fest-border hover:text-fest-red'}`}
@@ -473,7 +471,6 @@ export default function App() {
                                         await updateDoc(doc(db, 'applications', app.id), { status: newStatus });
                                       } catch (err) {
                                         console.error("Failed to update application status:", err);
-                                        alert('Failed to update application status.');
                                       }
                                     }}
                                     className={`bg-fest-bg stitch-border px-3 py-2 font-display uppercase tracking-widest text-xs focus:outline-none appearance-none ${
@@ -510,7 +507,6 @@ export default function App() {
                                         await updateDoc(doc(db, 'applications', app.id), { notes: e.target.value });
                                       } catch (err) {
                                         console.error("Failed to update notes:", err);
-                                        alert('Failed to update notes.');
                                       }
                                     }}
                                     className="w-full bg-transparent stitch-border-b px-2 py-2 text-sm text-fest-text focus:outline-none focus:border-fest-red placeholder-fest-border font-body transition-colors"
@@ -541,7 +537,6 @@ export default function App() {
                                       await updateDoc(doc(db, 'roles', role.id), { status: newStatus });
                                     } catch (err) {
                                       console.error("Failed to update role status:", err);
-                                      alert('Failed to update role status.');
                                     }
                                   }}
                                   className="bg-fest-card stitch-border px-2 py-1 text-xs font-display uppercase tracking-widest text-fest-text focus:outline-none appearance-none"
@@ -575,7 +570,6 @@ export default function App() {
                               (e.target as HTMLFormElement).reset();
                             } catch (err) {
                               console.error("Failed to assign task:", err);
-                              alert('Failed to assign task.');
                             }
                           }} className="space-y-3">
                             <input name="volunteerName" required placeholder="Volunteer Name" className="w-full bg-fest-bg stitch-border px-3 py-2 text-sm text-fest-text font-body focus:outline-none focus:border-fest-red placeholder-fest-border" />
@@ -591,9 +585,26 @@ export default function App() {
 
                         {/* Add Notice */}
                         <div className="bg-fest-card p-6 shadow-sm stitch-border">
-                          <h2 className="text-xl font-display font-bold text-fest-text uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <MessageSquare size={22} className="text-fest-red"/> POST NOTICE
-                          </h2>
+                          <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-display font-bold text-fest-text uppercase tracking-widest flex items-center gap-2">
+                              <MessageSquare size={22} className="text-fest-red"/> POST NOTICE
+                            </h2>
+                            {notices.length > 0 && (
+                              <button 
+                                onClick={async () => {
+                                  try {
+                                    const promises = notices.map(n => deleteDoc(doc(db, 'notices', n.id)));
+                                    await Promise.all(promises);
+                                  } catch (err) {
+                                    console.error("Failed to clear notices:", err);
+                                  }
+                                }}
+                                className="text-xs font-display uppercase tracking-widest text-fest-red hover:text-fest-red/80 transition-colors"
+                              >
+                                Clear All
+                              </button>
+                            )}
+                          </div>
                           <form onSubmit={async (e) => {
                             e.preventDefault();
                             const fd = new FormData(e.currentTarget);
@@ -606,7 +617,6 @@ export default function App() {
                               (e.target as HTMLFormElement).reset();
                             } catch (err) {
                               console.error("Failed to post notice:", err);
-                              alert('Failed to post notice.');
                             }
                           }} className="space-y-3">
                             <textarea name="message" required placeholder="Type a message..." rows={3} className="w-full bg-fest-bg stitch-border px-3 py-2 text-sm text-fest-text font-body focus:outline-none focus:border-fest-red resize-none placeholder-fest-border" />
