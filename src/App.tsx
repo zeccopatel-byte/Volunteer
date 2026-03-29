@@ -136,7 +136,7 @@ export default function App() {
           </div>
           <div className="flex flex-col">
             <span className="text-2xl font-display font-bold text-fest-red tracking-widest uppercase leading-none">Chicago Indian</span>
-            <span className="font-script text-fest-blue text-lg leading-none mt-1">Arts</span>
+            <span className="font-script text-fest-blue text-lg leading-none mt-1">Arts Festival</span>
           </div>
         </div>
         
