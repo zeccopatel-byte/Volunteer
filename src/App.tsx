@@ -60,6 +60,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   
   const [selectedRoleId, setSelectedRoleId] = useState<string>('');
+  const [applicationSubmitted, setApplicationSubmitted] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -125,14 +126,9 @@ export default function App() {
 
   const handleApply = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!user) {
-      alert("Please sign in to apply.");
-      return;
-    }
     const formData = new FormData(e.currentTarget);
     const newApp = {
       roleId: formData.get('roleId') as string,
-      userId: user.uid,
       name: formData.get('name') as string,
       contact: formData.get('contact') as string,
       whyMe: formData.get('whyMe') as string,
@@ -142,8 +138,7 @@ export default function App() {
     
     try {
       await addDoc(collection(db, 'applications'), newApp);
-      setView('dashboard');
-      alert('Application submitted successfully!');
+      setApplicationSubmitted(true);
     } catch (err) {
       console.error("Failed to submit application:", err);
       alert('Failed to submit application. Please check database connection.');
@@ -187,13 +182,9 @@ export default function App() {
           </nav>
           
           <div className="flex items-center gap-2">
-            {user ? (
+            {user && (
               <button onClick={handleLogout} className="flex items-center gap-2 text-fest-red hover:text-fest-red/80 font-display uppercase tracking-widest text-sm">
                 <LogOut size={18} /> Sign Out
-              </button>
-            ) : (
-              <button onClick={handleLogin} className="flex items-center gap-2 text-fest-blue hover:text-fest-blue/80 font-display uppercase tracking-widest text-sm">
-                <Lock size={18} /> Sign In
               </button>
             )}
           </div>
@@ -269,6 +260,7 @@ export default function App() {
                       <button 
                         onClick={() => {
                           setSelectedRoleId(role.id);
+                          setApplicationSubmitted(false);
                           setView('apply');
                         }}
                         disabled={role.status === 'filled'}
@@ -304,59 +296,75 @@ export default function App() {
                     <p className="font-script text-2xl text-fest-red">Stories woven in thread</p>
                   </div>
 
-                  <form onSubmit={handleApply} className="space-y-6">
-                    <div>
-                      <label className="block font-display uppercase tracking-widest text-fest-text text-sm mb-2">Select Role</label>
-                      <select 
-                        name="roleId" 
-                        defaultValue={selectedRoleId}
-                        required
-                        className="w-full bg-fest-bg stitch-border px-4 py-3 text-fest-text focus:outline-none focus:border-fest-red transition-colors appearance-none font-body"
+                  {applicationSubmitted ? (
+                    <div className="text-center py-10">
+                      <div className="w-16 h-16 bg-fest-green/10 rounded-full flex items-center justify-center mx-auto mb-6 stitch-border border-fest-green/50">
+                        <CheckCircle2 className="text-fest-green" size={32} />
+                      </div>
+                      <h3 className="text-2xl font-display font-bold text-fest-text uppercase tracking-widest mb-4">Thank you</h3>
+                      <p className="text-fest-text font-body text-lg">Admin will get back to you.</p>
+                      <button 
+                        onClick={() => setView('dashboard')}
+                        className="mt-8 bg-fest-blue text-fest-bg font-display uppercase tracking-widest px-8 py-3 hover:bg-fest-blue/90 transition-colors stitch-border border-fest-blue"
                       >
-                        <option value="" disabled>Select a role...</option>
-                        {roles.filter(r => r.status !== 'filled').map(r => (
-                          <option key={r.id} value={r.id}>{r.title}</option>
-                        ))}
-                      </select>
+                        Return to Dashboard
+                      </button>
                     </div>
-                    
-                    <div>
-                      <label className="block font-display uppercase tracking-widest text-fest-text text-sm mb-2">Full Name</label>
-                      <input 
-                        type="text" 
-                        name="name" 
-                        required
-                        placeholder="Jane Doe"
-                        className="w-full bg-fest-bg stitch-border px-4 py-3 text-fest-text focus:outline-none focus:border-fest-red transition-colors font-body placeholder-fest-border"
-                      />
-                    </div>
+                  ) : (
+                    <form onSubmit={handleApply} className="space-y-6">
+                      <div>
+                        <label className="block font-display uppercase tracking-widest text-fest-text text-sm mb-2">Select Role</label>
+                        <select 
+                          name="roleId" 
+                          defaultValue={selectedRoleId}
+                          required
+                          className="w-full bg-fest-bg stitch-border px-4 py-3 text-fest-text focus:outline-none focus:border-fest-red transition-colors appearance-none font-body"
+                        >
+                          <option value="" disabled>Select a role...</option>
+                          {roles.filter(r => r.status !== 'filled').map(r => (
+                            <option key={r.id} value={r.id}>{r.title}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block font-display uppercase tracking-widest text-fest-text text-sm mb-2">Full Name</label>
+                        <input 
+                          type="text" 
+                          name="name" 
+                          required
+                          placeholder="Jane Doe"
+                          className="w-full bg-fest-bg stitch-border px-4 py-3 text-fest-text focus:outline-none focus:border-fest-red transition-colors font-body placeholder-fest-border"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="block font-display uppercase tracking-widest text-fest-text text-sm mb-2">Contact Info (Email or Phone)</label>
-                      <input 
-                        type="text" 
-                        name="contact" 
-                        required
-                        placeholder="jane@example.com"
-                        className="w-full bg-fest-bg stitch-border px-4 py-3 text-fest-text focus:outline-none focus:border-fest-red transition-colors font-body placeholder-fest-border"
-                      />
-                    </div>
+                      <div>
+                        <label className="block font-display uppercase tracking-widest text-fest-text text-sm mb-2">Contact Info (Email or Phone)</label>
+                        <input 
+                          type="text" 
+                          name="contact" 
+                          required
+                          placeholder="jane@example.com"
+                          className="w-full bg-fest-bg stitch-border px-4 py-3 text-fest-text focus:outline-none focus:border-fest-red transition-colors font-body placeholder-fest-border"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="block font-display uppercase tracking-widest text-fest-text text-sm mb-2">Why Me?</label>
-                      <textarea 
-                        name="whyMe" 
-                        required
-                        rows={4}
-                        placeholder="Tell us why you'd be a great fit for this role..."
-                        className="w-full bg-fest-bg stitch-border px-4 py-3 text-fest-text focus:outline-none focus:border-fest-red transition-colors font-body placeholder-fest-border resize-none"
-                      />
-                    </div>
+                      <div>
+                        <label className="block font-display uppercase tracking-widest text-fest-text text-sm mb-2">Why Me?</label>
+                        <textarea 
+                          name="whyMe" 
+                          required
+                          rows={4}
+                          placeholder="Tell us why you'd be a great fit for this role..."
+                          className="w-full bg-fest-bg stitch-border px-4 py-3 text-fest-text focus:outline-none focus:border-fest-red transition-colors font-body placeholder-fest-border resize-none"
+                        />
+                      </div>
 
-                    <button type="submit" className="w-full bg-fest-blue text-fest-bg font-display uppercase tracking-widest py-4 hover:bg-fest-blue/90 transition-colors mt-4 stitch-border border-fest-blue">
-                      Submit Application
-                    </button>
-                  </form>
+                      <button type="submit" className="w-full bg-fest-blue text-fest-bg font-display uppercase tracking-widest py-4 hover:bg-fest-blue/90 transition-colors mt-4 stitch-border border-fest-blue">
+                        Submit Application
+                      </button>
+                    </form>
+                  )}
                 </div>
               </motion.div>
             )}

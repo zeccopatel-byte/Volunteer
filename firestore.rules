@@ -53,9 +53,8 @@ service cloud.firestore {
     }
     
     function isValidApplication(data) {
-      return hasAllAndOnlyAllowedFields(['roleId', 'userId', 'name', 'contact', 'whyMe', 'status', 'notes']) &&
+      return hasAllAndOnlyAllowedFields(['roleId', 'name', 'contact', 'whyMe', 'status', 'notes']) &&
              data.roleId is string && data.roleId.size() > 0 && data.roleId.size() < 50 &&
-             data.userId is string && data.userId.size() > 0 && data.userId.size() < 50 &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.contact is string && data.contact.size() > 0 && data.contact.size() < 100 &&
              data.whyMe is string && data.whyMe.size() > 0 && data.whyMe.size() < 2000 &&
@@ -75,24 +74,24 @@ service cloud.firestore {
     }
     
     match /roles/{roleId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAdmin() && isValidRole(request.resource.data);
       allow update: if isAdmin() && isValidRole(request.resource.data);
       allow delete: if isAdmin();
     }
     
     match /notices/{noticeId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAdmin() && isValidNotice(request.resource.data);
       allow update: if isAdmin() && isValidNotice(request.resource.data);
       allow delete: if isAdmin();
     }
     
     match /tasks/{taskId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAdmin() && isValidTask(request.resource.data);
-      // Volunteers can update the 'done' status of tasks
-      allow update: if isAuthenticated() && isValidTask(request.resource.data) && (
+      // Anyone can update the 'done' status of tasks
+      allow update: if isValidTask(request.resource.data) && (
         isAdmin() || 
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['done']))
       );
@@ -100,8 +99,8 @@ service cloud.firestore {
     }
     
     match /applications/{applicationId} {
-      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && isValidApplication(request.resource.data) && request.resource.data.userId == request.auth.uid;
+      allow read: if isAdmin();
+      allow create: if isValidApplication(request.resource.data);
       allow update: if isAdmin() && isValidApplication(request.resource.data);
       allow delete: if isAdmin();
     }
