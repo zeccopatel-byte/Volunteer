@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { db, auth } from './firebase';
 import { collection, getDocs, addDoc, updateDoc, doc, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
 
 // --- Types ---
 type Role = {
@@ -58,26 +57,13 @@ export default function App() {
   
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [pinInput, setPinInput] = useState('');
   
   const [selectedRoleId, setSelectedRoleId] = useState<string>('');
   const [applicationSubmitted, setApplicationSubmitted] = useState(false);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      if (currentUser && currentUser.email === 'zeccopatel@gmail.com') {
-        setIsAdmin(true);
-      } else {
-        setIsAdmin(false);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
   // Load from Firebase
   useEffect(() => {
-    if (!user) return; // Only fetch if logged in to respect security rules
-
     const unsubRoles = onSnapshot(collection(db, 'roles'), (snapshot) => {
       if (!snapshot.empty) {
         setRoles(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Role)));
@@ -103,25 +89,21 @@ export default function App() {
       unsubTasks();
       unsubNotices();
     };
-  }, [user, isAdmin]);
+  }, [isAdmin]);
 
-  const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Error signing in with Google", error);
-      alert("Failed to sign in.");
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pinInput === 'Arts77') {
+      setIsAdmin(true);
+      setPinInput('');
+    } else {
+      alert('Incorrect PIN');
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      setView('dashboard');
-    } catch (error) {
-      console.error("Error signing out", error);
-    }
+  const handleLogout = () => {
+    setIsAdmin(false);
+    setView('dashboard');
   };
 
   const handleApply = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -182,9 +164,9 @@ export default function App() {
           </nav>
           
           <div className="flex items-center gap-2">
-            {user && (
+            {isAdmin && (
               <button onClick={handleLogout} className="flex items-center gap-2 text-fest-red hover:text-fest-red/80 font-display uppercase tracking-widest text-sm">
-                <LogOut size={18} /> Sign Out
+                <LogOut size={18} /> Lock
               </button>
             )}
           </div>
@@ -441,12 +423,18 @@ export default function App() {
                     </div>
                     <h2 className="text-2xl font-display font-bold text-fest-text uppercase tracking-widest mb-2">Admin Access</h2>
                     <p className="font-script text-xl text-fest-blue mb-8">Enter the secret thread</p>
-                    <p className="text-fest-text font-body mb-6">You must be signed in with an authorized admin account to view this page.</p>
-                    {!user && (
-                      <button onClick={handleLogin} className="w-full bg-fest-red text-fest-bg font-display uppercase tracking-widest py-3 hover:bg-fest-red/90 transition-colors stitch-border border-fest-red">
-                        Sign In with Google
+                    <form onSubmit={handleAdminLogin}>
+                      <input 
+                        type="password" 
+                        value={pinInput}
+                        onChange={e => setPinInput(e.target.value)}
+                        placeholder="PIN"
+                        className="w-full bg-fest-bg stitch-border px-4 py-3 text-fest-text text-center tracking-[0.5em] font-display text-xl focus:outline-none focus:border-fest-red mb-6 transition-colors"
+                      />
+                      <button type="submit" className="w-full bg-fest-red text-fest-bg font-display uppercase tracking-widest py-3 hover:bg-fest-red/90 transition-colors stitch-border border-fest-red">
+                        Unlock
                       </button>
-                    )}
+                    </form>
                   </div>
                 ) : (
                   <div className="space-y-10">
