@@ -1,0 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&family=Dancing+Script:wght@600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Oswald", sans-serif;
+  --font-script: "Dancing Script", cursive;
+  --font-body: "Lora", serif;
+  
+  --color-fest-bg: #F4EFE6;
+  --color-fest-card: #FAF7F2;
+  --color-fest-text: #3A2E2B;
+  --color-fest-red: #9C3D36;
+  --color-fest-blue: #2B3A67;
+  --color-fest-green: #4A6B4D;
+  --color-fest-gold: #C1A57B;
+  --color-fest-border: #BCAAA4;
+}
+
+body {
+  background-color: var(--color-fest-bg);
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+  color: var(--color-fest-text);
+}
+
+.stitch-border {
+  border: 2px dashed var(--color-fest-border);
+}
+
+.stitch-border-b {
+  border-bottom: 2px dashed var(--color-fest-border);
+}
