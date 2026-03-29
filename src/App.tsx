@@ -5,7 +5,9 @@ import {
   CheckCircle2, Circle, Calendar,
   Briefcase, Bell, Lock, LogOut, ChevronRight
 } from 'lucide-react';
-import { supabase } from './lib/supabase';
+import { db, auth } from './firebase';
+import { collection, getDocs, addDoc, updateDoc, doc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
 
 // --- Types ---
 type Role = {
@@ -46,50 +48,91 @@ const INITIAL_ROLES: Role[] = [
   { id: '3', title: 'Graphic Designer / Canva Ninja', description: 'Creative over trained.', status: 'open' },
 ];
 
-const ADMIN_PIN = 'zecco77';
-
 // --- Main App Component ---
 export default function App() {
   const [view, setView] = useState<'dashboard' | 'apply' | 'admin' | 'tasks'>('dashboard');
   const [roles, setRoles] = useState<Role[]>(INITIAL_ROLES);
   const [applications, setApplications] = useState<Application[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [notices, setNotices] = useState<Notice[]>([
-    { id: '1', message: 'Welcome to the Zecco Volunteer Portal! We are looking for passionate individuals.', date: new Date().toISOString() }
-  ]);
+  const [notices, setNotices] = useState<Notice[]>([]);
   
+  const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [pinInput, setPinInput] = useState('');
   
   const [selectedRoleId, setSelectedRoleId] = useState<string>('');
 
-  // Load from Supabase
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [{ data: apps }, { data: tks }, { data: nots }, { data: rls }] = await Promise.all([
-          supabase.from('applications').select('*'),
-          supabase.from('tasks').select('*'),
-          supabase.from('notices').select('*').order('date', { ascending: false }),
-          supabase.from('roles').select('*')
-        ]);
-        
-        if (apps) setApplications(apps);
-        if (tks) setTasks(tks);
-        if (nots) setNotices(nots);
-        if (rls && rls.length > 0) setRoles(rls);
-      } catch (err) {
-        console.error("Failed to fetch from Supabase:", err);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser && currentUser.email === 'zeccopatel@gmail.com') {
+        setIsAdmin(true);
+      } else {
+        setIsAdmin(false);
       }
-    };
-    fetchData();
+    });
+    return () => unsubscribe();
   }, []);
+
+  // Load from Firebase
+  useEffect(() => {
+    if (!user) return; // Only fetch if logged in to respect security rules
+
+    const unsubRoles = onSnapshot(collection(db, 'roles'), (snapshot) => {
+      if (!snapshot.empty) {
+        setRoles(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Role)));
+      }
+    });
+
+    const unsubApps = isAdmin ? onSnapshot(collection(db, 'applications'), (snapshot) => {
+      setApplications(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Application)));
+    }) : () => {};
+
+    const unsubTasks = onSnapshot(collection(db, 'tasks'), (snapshot) => {
+      setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task)));
+    });
+
+    const qNotices = query(collection(db, 'notices'), orderBy('date', 'desc'));
+    const unsubNotices = onSnapshot(qNotices, (snapshot) => {
+      setNotices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notice)));
+    });
+
+    return () => {
+      unsubRoles();
+      unsubApps();
+      unsubTasks();
+      unsubNotices();
+    };
+  }, [user, isAdmin]);
+
+  const handleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Error signing in with Google", error);
+      alert("Failed to sign in.");
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setView('dashboard');
+    } catch (error) {
+      console.error("Error signing out", error);
+    }
+  };
 
   const handleApply = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!user) {
+      alert("Please sign in to apply.");
+      return;
+    }
     const formData = new FormData(e.currentTarget);
     const newApp = {
       roleId: formData.get('roleId') as string,
+      userId: user.uid,
       name: formData.get('name') as string,
       contact: formData.get('contact') as string,
       whyMe: formData.get('whyMe') as string,
@@ -98,27 +141,12 @@ export default function App() {
     };
     
     try {
-      const { data, error } = await supabase.from('applications').insert([newApp]).select();
-      if (!error && data) {
-        setApplications([...applications, data[0]]);
-        setView('dashboard');
-        alert('Application submitted successfully!');
-      } else {
-        alert('Failed to submit application. Please check database connection.');
-      }
+      await addDoc(collection(db, 'applications'), newApp);
+      setView('dashboard');
+      alert('Application submitted successfully!');
     } catch (err) {
       console.error("Failed to submit application:", err);
       alert('Failed to submit application. Please check database connection.');
-    }
-  };
-
-  const handleAdminLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pinInput === ADMIN_PIN) {
-      setIsAdmin(true);
-      setPinInput('');
-    } else {
-      alert('Incorrect PIN');
     }
   };
 
@@ -159,7 +187,15 @@ export default function App() {
           </nav>
           
           <div className="flex items-center gap-2">
-            {/* Profile removed */}
+            {user ? (
+              <button onClick={handleLogout} className="flex items-center gap-2 text-fest-red hover:text-fest-red/80 font-display uppercase tracking-widest text-sm">
+                <LogOut size={18} /> Sign Out
+              </button>
+            ) : (
+              <button onClick={handleLogin} className="flex items-center gap-2 text-fest-blue hover:text-fest-blue/80 font-display uppercase tracking-widest text-sm">
+                <Lock size={18} /> Sign In
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -358,12 +394,10 @@ export default function App() {
                             onClick={async () => {
                               const updatedStatus = !task.done;
                               try {
-                                const { error } = await supabase.from('tasks').update({ done: updatedStatus }).eq('id', task.id);
-                                if (!error) {
-                                  setTasks(tasks.map(t => t.id === task.id ? { ...t, done: updatedStatus } : t));
-                                }
+                                await updateDoc(doc(db, 'tasks', task.id), { done: updatedStatus });
                               } catch (err) {
                                 console.error("Failed to update task:", err);
+                                alert('Failed to update task.');
                               }
                             }}
                             className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors stitch-border ${task.done ? 'bg-fest-green text-fest-bg border-fest-green' : 'bg-fest-bg text-fest-border hover:text-fest-red'}`}
@@ -399,18 +433,12 @@ export default function App() {
                     </div>
                     <h2 className="text-2xl font-display font-bold text-fest-text uppercase tracking-widest mb-2">Admin Access</h2>
                     <p className="font-script text-xl text-fest-blue mb-8">Enter the secret thread</p>
-                    <form onSubmit={handleAdminLogin}>
-                      <input 
-                        type="password" 
-                        value={pinInput}
-                        onChange={e => setPinInput(e.target.value)}
-                        placeholder="PIN"
-                        className="w-full bg-fest-bg stitch-border px-4 py-3 text-fest-text text-center tracking-[0.5em] font-display text-xl focus:outline-none focus:border-fest-red mb-6 transition-colors"
-                      />
-                      <button type="submit" className="w-full bg-fest-red text-fest-bg font-display uppercase tracking-widest py-3 hover:bg-fest-red/90 transition-colors stitch-border border-fest-red">
-                        Unlock
+                    <p className="text-fest-text font-body mb-6">You must be signed in with an authorized admin account to view this page.</p>
+                    {!user && (
+                      <button onClick={handleLogin} className="w-full bg-fest-red text-fest-bg font-display uppercase tracking-widest py-3 hover:bg-fest-red/90 transition-colors stitch-border border-fest-red">
+                        Sign In with Google
                       </button>
-                    </form>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-10">
@@ -446,12 +474,10 @@ export default function App() {
                                     onChange={async (e) => {
                                       const newStatus = e.target.value;
                                       try {
-                                        const { error } = await supabase.from('applications').update({ status: newStatus }).eq('id', app.id);
-                                        if (!error) {
-                                          setApplications(applications.map(a => a.id === app.id ? { ...a, status: newStatus as any } : a));
-                                        }
+                                        await updateDoc(doc(db, 'applications', app.id), { status: newStatus });
                                       } catch (err) {
                                         console.error("Failed to update application status:", err);
+                                        alert('Failed to update application status.');
                                       }
                                     }}
                                     className={`bg-fest-bg stitch-border px-3 py-2 font-display uppercase tracking-widest text-xs focus:outline-none appearance-none ${
@@ -485,9 +511,10 @@ export default function App() {
                                     }}
                                     onBlur={async (e) => {
                                       try {
-                                        await supabase.from('applications').update({ notes: e.target.value }).eq('id', app.id);
+                                        await updateDoc(doc(db, 'applications', app.id), { notes: e.target.value });
                                       } catch (err) {
                                         console.error("Failed to update notes:", err);
+                                        alert('Failed to update notes.');
                                       }
                                     }}
                                     className="w-full bg-transparent stitch-border-b px-2 py-2 text-sm text-fest-text focus:outline-none focus:border-fest-red placeholder-fest-border font-body transition-colors"
@@ -515,12 +542,10 @@ export default function App() {
                                   onChange={async (e) => {
                                     const newStatus = e.target.value;
                                     try {
-                                      const { error } = await supabase.from('roles').update({ status: newStatus }).eq('id', role.id);
-                                      if (!error) {
-                                        setRoles(roles.map(r => r.id === role.id ? { ...r, status: newStatus as any } : r));
-                                      }
+                                      await updateDoc(doc(db, 'roles', role.id), { status: newStatus });
                                     } catch (err) {
                                       console.error("Failed to update role status:", err);
+                                      alert('Failed to update role status.');
                                     }
                                   }}
                                   className="bg-fest-card stitch-border px-2 py-1 text-xs font-display uppercase tracking-widest text-fest-text focus:outline-none appearance-none"
@@ -537,7 +562,7 @@ export default function App() {
                         {/* Add Task */}
                         <div className="bg-fest-card p-6 shadow-sm stitch-border">
                           <h2 className="text-xl font-display font-bold text-fest-text uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <CheckCircle2 size={22} className="text-fest-green"/> Assign Task
+                            <CheckCircle2 size={22} className="text-fest-green"/> ASSIGN TASK
                           </h2>
                           <form onSubmit={async (e) => {
                             e.preventDefault();
@@ -550,29 +575,28 @@ export default function App() {
                               done: false
                             };
                             try {
-                              const { data, error } = await supabase.from('tasks').insert([newTask]).select();
-                              if (!error && data) {
-                                setTasks([...tasks, data[0]]);
-                                (e.target as HTMLFormElement).reset();
-                              }
+                              await addDoc(collection(db, 'tasks'), newTask);
+                              (e.target as HTMLFormElement).reset();
                             } catch (err) {
                               console.error("Failed to assign task:", err);
+                              alert('Failed to assign task.');
                             }
                           }} className="space-y-3">
-                            <input name="volunteerName" required placeholder="Volunteer Name" className="w-full bg-fest-bg stitch-border px-3 py-2 text-sm text-fest-text font-body focus:outline-none focus:border-fest-red" />
-                            <select name="roleId" required className="w-full bg-fest-bg stitch-border px-3 py-2 text-sm text-fest-text font-body focus:outline-none focus:border-fest-red appearance-none">
-                              {roles.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}
+                            <input name="volunteerName" required placeholder="Volunteer Name" className="w-full bg-fest-bg stitch-border px-3 py-2 text-sm text-fest-text font-body focus:outline-none focus:border-fest-red placeholder-fest-border" />
+                            <select name="roleId" required defaultValue="" className="w-full bg-fest-bg stitch-border px-3 py-2 text-sm text-fest-text font-body focus:outline-none focus:border-fest-red appearance-none text-fest-border">
+                              <option value="" disabled>Social Media</option>
+                              {roles.map(r => <option key={r.id} value={r.id} className="text-fest-text">{r.title}</option>)}
                             </select>
-                            <input name="description" required placeholder="Task Description" className="w-full bg-fest-bg stitch-border px-3 py-2 text-sm text-fest-text font-body focus:outline-none focus:border-fest-red" />
-                            <input type="date" name="deadline" required className="w-full bg-fest-bg stitch-border px-3 py-2 text-sm text-fest-text font-body focus:outline-none focus:border-fest-red" />
-                            <button type="submit" className="w-full bg-fest-green text-fest-bg font-display uppercase tracking-widest py-3 hover:bg-fest-green/90 transition-colors mt-2 stitch-border border-fest-green">Add Task</button>
+                            <input name="description" required placeholder="Task Description" className="w-full bg-fest-bg stitch-border px-3 py-2 text-sm text-fest-text font-body focus:outline-none focus:border-fest-red placeholder-fest-border" />
+                            <input type="date" name="deadline" required className="w-full bg-fest-bg stitch-border px-3 py-2 text-sm text-fest-text font-body focus:outline-none focus:border-fest-red text-fest-border" />
+                            <button type="submit" className="w-full bg-fest-green text-fest-bg font-display uppercase tracking-widest py-3 hover:bg-fest-green/90 transition-colors mt-2 stitch-border border-fest-green">ADD TASK</button>
                           </form>
                         </div>
 
                         {/* Add Notice */}
                         <div className="bg-fest-card p-6 shadow-sm stitch-border">
                           <h2 className="text-xl font-display font-bold text-fest-text uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <MessageSquare size={22} className="text-fest-red"/> Post Notice
+                            <MessageSquare size={22} className="text-fest-red"/> POST NOTICE
                           </h2>
                           <form onSubmit={async (e) => {
                             e.preventDefault();
@@ -582,17 +606,15 @@ export default function App() {
                               date: new Date().toISOString()
                             };
                             try {
-                              const { data, error } = await supabase.from('notices').insert([newNotice]).select();
-                              if (!error && data) {
-                                setNotices([data[0], ...notices]);
-                                (e.target as HTMLFormElement).reset();
-                              }
+                              await addDoc(collection(db, 'notices'), newNotice);
+                              (e.target as HTMLFormElement).reset();
                             } catch (err) {
                               console.error("Failed to post notice:", err);
+                              alert('Failed to post notice.');
                             }
                           }} className="space-y-3">
-                            <textarea name="message" required placeholder="Type a message..." rows={3} className="w-full bg-fest-bg stitch-border px-3 py-2 text-sm text-fest-text font-body focus:outline-none focus:border-fest-red resize-none" />
-                            <button type="submit" className="w-full bg-fest-red text-fest-bg font-display uppercase tracking-widest py-3 hover:bg-fest-red/90 transition-colors mt-2 stitch-border border-fest-red">Post Notice</button>
+                            <textarea name="message" required placeholder="Type a message..." rows={3} className="w-full bg-fest-bg stitch-border px-3 py-2 text-sm text-fest-text font-body focus:outline-none focus:border-fest-red resize-none placeholder-fest-border" />
+                            <button type="submit" className="w-full bg-fest-red text-fest-bg font-display uppercase tracking-widest py-3 hover:bg-fest-red/90 transition-colors mt-2 stitch-border border-fest-red">POST NOTICE</button>
                           </form>
                         </div>
 

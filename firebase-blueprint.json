@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "Role": {
+      "title": "Role",
+      "description": "A volunteer role available for application.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "in-progress", "filled"] }
+      },
+      "required": ["title", "description", "status"]
+    },
+    "Application": {
+      "title": "Application",
+      "description": "A volunteer application.",
+      "type": "object",
+      "properties": {
+        "roleId": { "type": "string" },
+        "name": { "type": "string" },
+        "contact": { "type": "string" },
+        "whyMe": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "shortlisted", "accepted", "rejected"] },
+        "notes": { "type": "string" }
+      },
+      "required": ["roleId", "name", "contact", "whyMe", "status"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A task assigned to a volunteer.",
+      "type": "object",
+      "properties": {
+        "volunteerName": { "type": "string" },
+        "roleId": { "type": "string" },
+        "description": { "type": "string" },
+        "deadline": { "type": "string" },
+        "done": { "type": "boolean" }
+      },
+      "required": ["volunteerName", "roleId", "description", "deadline", "done"]
+    },
+    "Notice": {
+      "title": "Notice",
+      "description": "A notice or announcement.",
+      "type": "object",
+      "properties": {
+        "message": { "type": "string" },
+        "date": { "type": "string" }
+      },
+      "required": ["message", "date"]
+    }
+  },
+  "firestore": {
+    "/roles/{roleId}": {
+      "schema": { "$ref": "#/entities/Role" },
+      "description": "Collection of volunteer roles."
+    },
+    "/applications/{applicationId}": {
+      "schema": { "$ref": "#/entities/Application" },
+      "description": "Collection of volunteer applications."
+    },
+    "/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/Task" },
+      "description": "Collection of tasks assigned to volunteers."
+    },
+    "/notices/{noticeId}": {
+      "schema": { "$ref": "#/entities/Notice" },
+      "description": "Collection of notices and announcements."
+    }
+  }
+}

@@ -1,0 +1,109 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && (
+        (request.auth.token.email == "zeccopatel@gmail.com" && request.auth.token.email_verified == true) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function hasAllAndOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasAll(fields) && request.resource.data.keys().hasOnly(fields);
+    }
+    
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    
+    function isValidRole(data) {
+      return hasAllAndOnlyAllowedFields(['title', 'description', 'status']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 100 &&
+             data.description is string && data.description.size() > 0 && data.description.size() < 1000 &&
+             data.status in ['open', 'in-progress', 'filled'];
+    }
+    
+    function isValidNotice(data) {
+      return hasAllAndOnlyAllowedFields(['message', 'date']) &&
+             data.message is string && data.message.size() > 0 && data.message.size() < 1000 &&
+             data.date is string && data.date.size() > 0 && data.date.size() < 50;
+    }
+    
+    function isValidTask(data) {
+      return hasAllAndOnlyAllowedFields(['volunteerName', 'roleId', 'description', 'deadline', 'done']) &&
+             data.volunteerName is string && data.volunteerName.size() > 0 && data.volunteerName.size() < 100 &&
+             data.roleId is string && data.roleId.size() > 0 && data.roleId.size() < 50 &&
+             data.description is string && data.description.size() > 0 && data.description.size() < 1000 &&
+             data.deadline is string && data.deadline.size() > 0 && data.deadline.size() < 50 &&
+             data.done is bool;
+    }
+    
+    function isValidApplication(data) {
+      return hasAllAndOnlyAllowedFields(['roleId', 'userId', 'name', 'contact', 'whyMe', 'status', 'notes']) &&
+             data.roleId is string && data.roleId.size() > 0 && data.roleId.size() < 50 &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 50 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.contact is string && data.contact.size() > 0 && data.contact.size() < 100 &&
+             data.whyMe is string && data.whyMe.size() > 0 && data.whyMe.size() < 2000 &&
+             data.status in ['pending', 'shortlisted', 'accepted', 'rejected'] &&
+             data.notes is string && data.notes.size() < 2000;
+    }
+    
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    match /roles/{roleId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidRole(request.resource.data);
+      allow update: if isAdmin() && isValidRole(request.resource.data);
+      allow delete: if isAdmin();
+    }
+    
+    match /notices/{noticeId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidNotice(request.resource.data);
+      allow update: if isAdmin() && isValidNotice(request.resource.data);
+      allow delete: if isAdmin();
+    }
+    
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidTask(request.resource.data);
+      // Volunteers can update the 'done' status of tasks
+      allow update: if isAuthenticated() && isValidTask(request.resource.data) && (
+        isAdmin() || 
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['done']))
+      );
+      allow delete: if isAdmin();
+    }
+    
+    match /applications/{applicationId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidApplication(request.resource.data) && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin() && isValidApplication(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}
