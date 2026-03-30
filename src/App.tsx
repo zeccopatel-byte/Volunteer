@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Users, ClipboardList, MessageSquare, ShieldCheck, 
   CheckCircle2, Circle, Calendar,
-  Briefcase, Bell, Lock, LogOut, ChevronRight
+  Briefcase, Bell, Lock, LogOut, ChevronRight, Instagram
 } from 'lucide-react';
 import { db, auth } from './firebase';
 import { collection, getDocs, addDoc, updateDoc, doc, onSnapshot, query, orderBy, deleteDoc } from 'firebase/firestore';
@@ -162,7 +162,17 @@ export default function App() {
             </button>
           </nav>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
+            <a 
+              href="https://www.instagram.com/chicagoindianarts/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-fest-red hover:text-fest-red/80 transition-colors flex items-center gap-2"
+              title="Follow us on Instagram"
+            >
+              <Instagram size={20} />
+              <span className="hidden sm:inline text-xs font-display uppercase tracking-widest">Instagram</span>
+            </a>
             {isAdmin && (
               <button onClick={handleLogout} className="flex items-center gap-2 text-fest-red hover:text-fest-red/80 font-display uppercase tracking-widest text-sm">
                 <LogOut size={18} /> Lock
@@ -212,7 +222,7 @@ export default function App() {
               >
                 <div className="text-center mb-12">
                   <h1 className="text-5xl md:text-6xl font-display font-bold text-fest-text tracking-wider uppercase mb-2">Open Roles</h1>
-                  <p className="font-script text-3xl md:text-4xl text-fest-blue">Join our literary community</p>
+                  <p className="font-script text-3xl md:text-4xl text-fest-blue">Join our community</p>
                   <div className="flex justify-center mt-6">
                     <div className="w-24 border-b-2 border-dashed border-fest-red"></div>
                     <span className="mx-4 text-fest-gold">✤</span>
