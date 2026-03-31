@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Users, ClipboardList, MessageSquare, ShieldCheck, 
   CheckCircle2, Circle, Calendar,
-  Briefcase, Bell, Lock, LogOut, ChevronRight, Instagram
+  Briefcase, Bell, Lock, LogOut, ChevronRight, Instagram, Menu, X
 } from 'lucide-react';
 import { db, auth } from './firebase';
 import { collection, getDocs, addDoc, updateDoc, doc, onSnapshot, query, orderBy, deleteDoc } from 'firebase/firestore';
@@ -61,6 +61,7 @@ export default function App() {
   
   const [selectedRoleId, setSelectedRoleId] = useState<string>('');
   const [applicationSubmitted, setApplicationSubmitted] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Load from Firebase
   useEffect(() => {
@@ -129,7 +130,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-fest-bg text-fest-text font-body overflow-hidden flex flex-col relative">
       {/* Top Navigation */}
-      <header className="relative z-20 flex items-center justify-between px-6 py-5 stitch-border-b bg-fest-bg/90 backdrop-blur-sm">
+      <header className="relative z-50 flex items-center justify-between px-6 py-5 stitch-border-b bg-fest-bg/90 backdrop-blur-sm">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('dashboard')}>
           <div className="w-10 h-10 bg-fest-red rounded-sm flex items-center justify-center shadow-sm stitch-border border-fest-red/50">
             <Users className="text-fest-bg" size={20} />
@@ -174,13 +175,58 @@ export default function App() {
               <span className="hidden sm:inline text-xs font-display uppercase tracking-widest">Instagram</span>
             </a>
             {isAdmin && (
-              <button onClick={handleLogout} className="flex items-center gap-2 text-fest-red hover:text-fest-red/80 font-display uppercase tracking-widest text-sm">
+              <button onClick={handleLogout} className="hidden md:flex items-center gap-2 text-fest-red hover:text-fest-red/80 font-display uppercase tracking-widest text-sm">
                 <LogOut size={18} /> Lock
               </button>
             )}
+            <button 
+              className="md:hidden text-fest-red hover:text-fest-red/80 transition-colors ml-2"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
           </div>
         </div>
       </header>
+
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="absolute top-[80px] left-0 w-full bg-fest-bg/95 backdrop-blur-md border-b border-fest-red/20 shadow-lg z-40 md:hidden flex flex-col p-6 gap-4"
+          >
+            <button 
+              onClick={() => { setView('dashboard'); setIsMobileMenuOpen(false); }}
+              className={`text-left px-4 py-3 text-lg font-display tracking-wider uppercase transition-all ${view === 'dashboard' ? 'bg-fest-card text-fest-red stitch-border' : 'text-fest-text hover:text-fest-red'}`}
+            >
+              Dashboard
+            </button>
+            <button 
+              onClick={() => { setView('tasks'); setIsMobileMenuOpen(false); }}
+              className={`text-left px-4 py-3 text-lg font-display tracking-wider uppercase transition-all ${view === 'tasks' ? 'bg-fest-card text-fest-red stitch-border' : 'text-fest-text hover:text-fest-red'}`}
+            >
+              Tasks
+            </button>
+            <button 
+              onClick={() => { setView('admin'); setIsMobileMenuOpen(false); }}
+              className={`text-left px-4 py-3 text-lg font-display tracking-wider uppercase transition-all ${view === 'admin' ? 'bg-fest-card text-fest-red stitch-border' : 'text-fest-text hover:text-fest-red'}`}
+            >
+              Admin
+            </button>
+            {isAdmin && (
+              <button 
+                onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} 
+                className="text-left px-4 py-3 text-lg font-display tracking-wider uppercase text-fest-red hover:text-fest-red/80 transition-all flex items-center gap-2 mt-4 border-t border-fest-red/20 pt-6"
+              >
+                <LogOut size={20} /> Lock (Logout)
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Content Area */}
       <main className="flex-1 relative z-10 overflow-y-auto p-6 md:p-10">
