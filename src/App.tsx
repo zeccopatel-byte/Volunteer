@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Users, ClipboardList, MessageSquare, ShieldCheck, 
   CheckCircle2, Circle, Calendar,
-  Briefcase, Bell, Lock, LogOut, ChevronRight, Instagram, Menu, X
+  Briefcase, Bell, Lock, LogOut, ChevronRight, Instagram, Menu, X, Download
 } from 'lucide-react';
 import { db, auth } from './firebase';
 import { collection, getDocs, addDoc, updateDoc, doc, onSnapshot, query, orderBy, deleteDoc } from 'firebase/firestore';
@@ -105,6 +105,37 @@ export default function App() {
   const handleLogout = () => {
     setIsAdmin(false);
     setView('dashboard');
+  };
+
+  const exportApplicationsToCSV = () => {
+    if (applications.length === 0) return;
+
+    const headers = ['Name', 'Contact', 'Role', 'Status', 'Why Me', 'Notes'];
+    const csvRows = [
+      headers.join(','),
+      ...applications.map(app => {
+        const roleTitle = roles.find(r => r.id === app.roleId)?.title || 'Unknown';
+        return [
+          `"${app.name.replace(/"/g, '""')}"`,
+          `"${app.contact.replace(/"/g, '""')}"`,
+          `"${roleTitle.replace(/"/g, '""')}"`,
+          `"${app.status.replace(/"/g, '""')}"`,
+          `"${app.whyMe.replace(/"/g, '""')}"`,
+          `"${(app.notes || '').replace(/"/g, '""')}"`
+        ].join(',');
+      })
+    ];
+
+    const csvString = csvRows.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `CIAF_Applications_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleApply = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -505,9 +536,19 @@ export default function App() {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                       {/* Applications Column */}
                       <div className="lg:col-span-2 space-y-6">
-                        <h2 className="text-2xl font-display font-bold text-fest-text uppercase tracking-widest flex items-center gap-3">
-                          <ClipboardList size={24} className="text-fest-red" /> Applications
-                        </h2>
+                        <div className="flex items-center justify-between">
+                          <h2 className="text-2xl font-display font-bold text-fest-text uppercase tracking-widest flex items-center gap-3">
+                            <ClipboardList size={24} className="text-fest-red" /> Applications
+                          </h2>
+                          {applications.length > 0 && (
+                            <button 
+                              onClick={exportApplicationsToCSV}
+                              className="flex items-center gap-2 bg-fest-blue text-fest-bg px-4 py-2 text-xs font-display uppercase tracking-widest hover:bg-fest-blue/90 transition-colors stitch-border border-fest-blue"
+                            >
+                              <Download size={16} /> Export CSV
+                            </button>
+                          )}
+                        </div>
                         <div className="space-y-6">
                           {applications.length === 0 ? (
                             <div className="text-fest-text/60 bg-fest-card p-10 stitch-border text-center font-body italic">No applications yet.</div>
